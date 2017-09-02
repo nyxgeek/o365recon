@@ -1,9 +1,10 @@
 # o365recon
 script to retrieve information via O365 with a valid cred
-
+````
 Usage:
-.\o365recon.ps1
 
+.\o365recon.ps1
+````
 No parameters. It will prompt you to log in, and then it will retrieve all information it can about that account's O365 configuration.
 
 Retrieves:
