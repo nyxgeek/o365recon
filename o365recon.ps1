@@ -24,20 +24,20 @@ echo "-------------------------------------------"
 
 #get other domain info
 echo "Retrieving Domain Information:"
-Get-MsolDomain
+Get-MsolDomain | ft
 echo "-------------------------------------------"
 
 # get all usernames
 echo "Retrieving Usernames:"
-Get-MsolUser -All
+Get-MsolUser -All | ft
 echo "-------------------------------------------"
 
 # get all group names
 echo "Retrieving Groups:"
-Get-MsolGroup -All
+Get-MsolGroup -All | ft
 echo "-------------------------------------------"
 
 # get all group memberships
 echo "Retrieving Group Membership:"
-Get-MsolGroup -All | % {"Retrieving Membership for $($_.DisplayName)";$memberlist=$(Get-MsolGroupMember -GroupObjectid $_.objectid);if ($memberlist -ne $null){$memberlist}else{"no group members found"};echo "--------"}
+Get-MsolGroup -All | % {"Retrieving Membership for $($_.DisplayName)";$memberlist=$(Get-MsolGroupMember -GroupObjectid $_.objectid);if ($memberlist -ne $null){$memberlist}else{"no group members found"};echo "--------"} | ft
 echo "-------------------------------------------"
