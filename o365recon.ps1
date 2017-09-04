@@ -12,19 +12,35 @@
 
 #connect to MsolService
 try {
-    Connect-MsolService
-  }catch{
+    #old way
+    #Connect-MsolService
+    
+    #new way
+    Connect-AzureAD
+
+}catch{
     echo "Could not connect!"
   }
 
-#get company info
-echo "Retrieving Company Info:"
-Get-MsolCompanyInformation
+#get company info -- NOTE: ON HOLD until new AzureAD version is found
+#echo "Retrieving Company Info:"
+#old way
+#Get-MsolCompanyInformation
+
+#new way
+#????
+
 echo "-------------------------------------------"
 
 #get other domain info
 echo "Retrieving Domain Information:"
-Get-MsolDomain | ft
+
+#old way
+#Get-MsolDomain | ft
+
+#new way
+Get-AzureADDomain | ft
+
 echo "-------------------------------------------"
 
 # get all usernames
@@ -34,10 +50,22 @@ echo "-------------------------------------------"
 
 # get all group names
 echo "Retrieving Groups:"
-Get-MsolGroup -All | ft
+#old way
+#Get-MsolGroup -All | ft
+
+#new way
+Get-AzureADGroup -All | ft
+
 echo "-------------------------------------------"
 
 # get all group memberships
 echo "Retrieving Group Membership:"
-Get-MsolGroup -All | % {"Retrieving Membership for $($_.DisplayName)";$memberlist=$(Get-MsolGroupMember -GroupObjectid $_.objectid);if ($memberlist -ne $null){$memberlist}else{"no group members found"};echo "--------"} | ft
+
+#old way
+#Get-MsolGroup -All | % {"Retrieving Membership for $($_.DisplayName)";$memberlist=$(Get-MsolGroupMember -GroupObjectid $_.objectid);if ($memberlist -ne $null){$memberlist}else{"no group members found"};echo "--------"} | ft
+
+#new way
+Get-AzureADGroup -All | % {"Retrieving Membership for $($_.DisplayName)";$memberlist=$(Get-AzureADGroupMember -GroupObjectid $_.objectid);if ($memberlist -ne $null){$memberlist}else{"no group members found"};echo "--------"} | ft
+
+
 echo "-------------------------------------------"
