@@ -13,19 +13,20 @@
 #connect to MsolService
 try {
     #old way
-    #Connect-MsolService
+    Connect-MsolService
     
-    #new way
-    Connect-AzureAD
+    #new way - to be switched over soon
+    #Connect-AzureAD
 
 }catch{
     echo "Could not connect!"
   }
 
-#get company info -- NOTE: ON HOLD until new AzureAD version is found
-#echo "Retrieving Company Info:"
+#get company info
+echo "Retrieving Company Info:"
+
 #old way
-#Get-MsolCompanyInformation
+Get-MsolCompanyInformation
 
 #new way
 #????
@@ -36,10 +37,10 @@ echo "-------------------------------------------"
 echo "Retrieving Domain Information:"
 
 #old way
-#Get-MsolDomain | ft
+Get-MsolDomain | ft
 
-#new way
-Get-AzureADDomain | ft
+#new way - to be switched over soon
+#Get-AzureADDomain | ft
 
 echo "-------------------------------------------"
 
@@ -51,10 +52,10 @@ echo "-------------------------------------------"
 # get all group names
 echo "Retrieving Groups:"
 #old way
-#Get-MsolGroup -All | ft
+Get-MsolGroup -All | ft
 
 #new way
-Get-AzureADGroup -All | ft
+#Get-AzureADGroup -All | ft
 
 echo "-------------------------------------------"
 
@@ -62,10 +63,10 @@ echo "-------------------------------------------"
 echo "Retrieving Group Membership:"
 
 #old way
-#Get-MsolGroup -All | % {"Retrieving Membership for $($_.DisplayName)";$memberlist=$(Get-MsolGroupMember -GroupObjectid $_.objectid);if ($memberlist -ne $null){$memberlist}else{"no group members found"};echo "--------"} | ft
+Get-MsolGroup -All | % {"Retrieving Membership for $($_.DisplayName)";$memberlist=$(Get-MsolGroupMember -GroupObjectid $_.objectid);if ($memberlist -ne $null){$memberlist}else{"no group members found"};echo "--------"} | ft
 
 #new way
-Get-AzureADGroup -All | % {"Retrieving Membership for $($_.DisplayName)";$memberlist=$(Get-AzureADGroupMember -GroupObjectid $_.objectid);if ($memberlist -ne $null){$memberlist}else{"no group members found"};echo "--------"} | ft
+#Get-AzureADGroup -All | % {"Retrieving Membership for $($_.DisplayName)";$memberlist=$(Get-AzureADGroupMember -GroupObjectid $_.objectid);if ($memberlist -ne $null){$memberlist}else{"no group members found"};echo "--------"} | ft
 
 
 echo "-------------------------------------------"
