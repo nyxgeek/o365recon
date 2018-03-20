@@ -13,13 +13,14 @@
 #connect to MsolService
 try {
     #old way
-    Connect-MsolService
+    Connect-MsolService -ErrorAction Stop
     
     #new way - to be switched over soon
     #Connect-AzureAD
 
 }catch{
     echo "Could not connect!"
+    throw $_
   }
 
 #get company info
