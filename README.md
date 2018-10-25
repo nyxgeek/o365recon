@@ -1,5 +1,18 @@
 # o365recon
 script to retrieve information via O365 with a valid cred
+
+## setup
+For most people, you will just have to install the MsOnline module
+```
+ Install-Module MSOnline
+```
+
+If you want to use the commented out Azure stuff, you will have to install AzureAD
+```
+Install-Module -Name AzureAD
+```
+
+## usage
 ````
 Usage:
 
