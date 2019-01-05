@@ -91,6 +91,8 @@ $CURRENTJOB = "./${projectname}/${projectname}"
 
 ## COMPANYINFO - ON BY DEFAULT
 
+if ($C -eq $true){
+
 #get company info
 echo "Retrieving Company Info:"
 
@@ -101,10 +103,11 @@ Get-MsolCompanyInformation |  tee -FilePath .\${CURRENTJOB}.CompanyInfo.txt
 #????
 
 echo "-------------------------------------------"
-
+}
 
 ## DOMAININFO FLAG - ON BY DEFAULT
 
+if ($D -eq $true){
 
 #get other domain info
 echo "Retrieving Domain Information:"
@@ -117,25 +120,42 @@ Get-MsolDomain | ft -Auto | tee -FilePath .\${CURRENTJOB}.Domains.txt
 
 echo "-------------------------------------------"
 
+}
+
 ## USERS FLAG -- ON BY DEFAULT
+
+if ($U -eq $true){
 
 Get-MsolUser -All | ft -Property UserPrincipalName -Autosize | Out-file -FilePath ./${CURRENTJOB}.Users.txt
 
 echo "-------------------------------------------"
+}
 
 ## IF DETAILED FLAG IS SET
 
-Get-MsolUser -All |  Where-Object {$_.UserPrincipalName -notlike "HealthMailbox*"} | ft -Property UserPrincipalName,DisplayName,Department,Title,PhoneNumber,Office,PasswordNeverExpires,LastPasswordChangeTimestamp,LastDirSyncTime -Autosize | Out-String -Width 4096 | tee -FilePath .\${CURRENTJOB}.users_advanced.txt
-Get-MsolUser -All |  Where-Object {$_.UserPrincipalName -notlike "HealthMailbox*"} | Select-Object -Property UserPrincipalName,DisplayName,Department,Title,PhoneNumber,Office,PasswordNeverExpires,LastPasswordChangeTimestamp,LastDirSyncTime | Export-Csv -Append -Path .\${CURRENTJOB}.users_advanced.csv
+if ($users_detailed -eq $true){
+
+Get-MsolUser -All |  Where-Object {$_.UserPrincipalName -notlike "HealthMailbox*"} | ft -Property UserPrincipalName,DisplayName,Department,Title,PhoneNumber,Office,PasswordNeverExpires,LastPasswordChangeTimestamp,LastDirSyncTime -Autosize | Out-String -Width 4096 | tee -FilePath .\${CURRENTJOB}.users_detailed.txt
+Get-MsolUser -All |  Where-Object {$_.UserPrincipalName -notlike "HealthMailbox*"} | Select-Object -Property UserPrincipalName,DisplayName,Department,Title,PhoneNumber,Office,PasswordNeverExpires,LastPasswordChangeTimestamp,LastDirSyncTime | Export-Csv -Append -Path .\${CURRENTJOB}.users_detailed.csv
 
 echo "-------------------------------------------"
 
+}
+
+
 ## IF USER_LDAP IS SET -- this is each user entry ldap style
-Get-MsolUser -All | Select-Object -Property * | tee -FilePath ./${CURRENTJOB}.users_detailed.txt
+if ($users_ldap -eq  $true){
+Get-MsolUser -All | Select-Object -Property * | tee -FilePath ./${CURRENTJOB}.users_ldap_detailed.txt
  
 echo "-------------------------------------------"
 
+}
+
+
 ## GROUPS FLAG - ON BY DEFAULT
+
+
+if ($G -eq $true){
 # RETRIEVE GROUP NAMES
 
 #old way
@@ -146,6 +166,8 @@ Get-MsolGroup -All | ft -Property CommonName | tee -FilePath ./${CURRENTJOB}.gro
 
 echo "-------------------------------------------"
 
+
+
 ## GROUPS_ADVANCED FLAG - OFF BY DEFAULT
 # RETRIEVE GROUP NAMES, DESCRIPTION, GROUP TYPE
 
@@ -155,7 +177,11 @@ Get-MsolGroup -All | ft -Property CommonName,Description,GroupType -Autosize | t
 
 echo "-------------------------------------------"
 
+}
+
 ## GROUP_MEMBERSHIP FLAG - ON BY DEFAULT
+
+if ($M -eq $true){
 # get all group memberships
 
 # old way but with enum4linux style group membership
@@ -171,4 +197,4 @@ Get-MsolGroup -All | % {
         };
     echo "--------"
     }
-
+}
