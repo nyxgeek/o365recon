@@ -126,7 +126,7 @@ echo "-------------------------------------------"
 
 if ($U -eq $true){
 
-Get-MsolUser -All | ft -Property UserPrincipalName -Autosize | Out-file -FilePath ./${CURRENTJOB}.Users.txt
+Get-MsolUser -All | ft -Property UserPrincipalName -Autosize | tee -FilePath ./${CURRENTJOB}.Users.txt
 
 echo "-------------------------------------------"
 }
