@@ -159,7 +159,7 @@ if ($G -eq $true){
 # RETRIEVE GROUP NAMES
 
 #old way
-Get-MsolGroup -All | ft -Property CommonName | tee -FilePath ./${CURRENTJOB}.groups.txt
+Get-MsolGroup -All | ft -Property DisplayName | tee -FilePath ./${CURRENTJOB}.groups.txt
 
 #new way
 #Get-AzureADGroup -All | ft
@@ -172,7 +172,7 @@ echo "-------------------------------------------"
 # RETRIEVE GROUP NAMES, DESCRIPTION, GROUP TYPE
 
 #old way
-Get-MsolGroup -All | ft -Property CommonName,Description,GroupType -Autosize | tee -FilePath .\${CURRENTJOB}.groups_advanced.txt
+Get-MsolGroup -All | ft -Property DisplayName,Description,GroupType -Autosize | tee -FilePath .\${CURRENTJOB}.groups_advanced.txt
 
 
 echo "-------------------------------------------"
