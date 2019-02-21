@@ -126,6 +126,8 @@ echo "-------------------------------------------"
 
 if ($U -eq $true){
 
+echo "Retrieving User List:"
+
 Get-MsolUser -All | ft -Property UserPrincipalName -Autosize | tee -FilePath ./${CURRENTJOB}.Users.txt
 
 echo "-------------------------------------------"
@@ -134,6 +136,8 @@ echo "-------------------------------------------"
 ## IF DETAILED FLAG IS SET
 
 if ($users_detailed -eq $true){
+
+echo "Retrieving Detailed User Information:"
 
 Get-MsolUser -All |  Where-Object {$_.UserPrincipalName -notlike "HealthMailbox*"} | ft -Property UserPrincipalName,DisplayName,Department,Title,PhoneNumber,Office,PasswordNeverExpires,LastPasswordChangeTimestamp,LastDirSyncTime -Autosize | Out-String -Width 4096 | tee -FilePath .\${CURRENTJOB}.users_detailed.txt
 Get-MsolUser -All |  Where-Object {$_.UserPrincipalName -notlike "HealthMailbox*"} | Select-Object -Property UserPrincipalName,DisplayName,Department,Title,PhoneNumber,Office,PasswordNeverExpires,LastPasswordChangeTimestamp,LastDirSyncTime | Export-Csv -Append -Path .\${CURRENTJOB}.users_detailed.csv
@@ -145,6 +149,8 @@ echo "-------------------------------------------"
 
 ## IF USER_LDAP IS SET -- this is each user entry ldap style
 if ($users_ldap -eq  $true){
+
+echo "Retrieving User Information in LDAP Format"
 Get-MsolUser -All | Select-Object -Property * | tee -FilePath ./${CURRENTJOB}.users_ldap_detailed.txt
  
 echo "-------------------------------------------"
@@ -157,6 +163,8 @@ echo "-------------------------------------------"
 
 if ($G -eq $true){
 # RETRIEVE GROUP NAMES
+
+echo "Retrieving Group Names:"
 
 #old way
 Get-MsolGroup -All | ft -Property DisplayName | tee -FilePath ./${CURRENTJOB}.groups.txt
@@ -171,6 +179,7 @@ echo "-------------------------------------------"
 ## GROUPS_ADVANCED FLAG - OFF BY DEFAULT
 # RETRIEVE GROUP NAMES, DESCRIPTION, GROUP TYPE
 
+echo "Retrieving Extended Group Information:"
 #old way
 Get-MsolGroup -All | ft -Property DisplayName,Description,GroupType -Autosize | tee -FilePath .\${CURRENTJOB}.groups_advanced.txt
 
@@ -183,6 +192,8 @@ echo "-------------------------------------------"
 
 if ($M -eq $true){
 # get all group memberships
+
+echo "Retrieving Group Membership:"
 
 # old way but with enum4linux style group membership
 Get-MsolGroup -All | % {
