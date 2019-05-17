@@ -181,7 +181,7 @@ echo "-------------------------------------------"
 
 echo "Retrieving Extended Group Information:"
 #old way
-Get-MsolGroup -All | ft -Property DisplayName,Description,GroupType -Autosize | tee -FilePath .\${CURRENTJOB}.groups_advanced.txt
+Get-MsolGroup -All | ft -Property DisplayName,Description,GroupType -wrap | tee -FilePath .\${CURRENTJOB}.groups_advanced.txt
 
 
 echo "-------------------------------------------"
