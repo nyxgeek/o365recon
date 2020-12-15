@@ -20,6 +20,7 @@
 
 # -all             Do simple enum - like enum4linux (-U -G -M -D -C). This is run if no other options are selected.
 # -outputfile      Output file prefix
+# -azure           Use Azure to get extra info
 
 
 param([switch] $U = $false, 
@@ -30,7 +31,8 @@ param([switch] $U = $false,
       [switch] $D = $false,
       [switch] $C = $false,
       [switch] $all = $false,
-      [string] $outputfile = $false
+      [string] $outputfile = $false,
+      [switch] $azure = $false
       )
 
 
@@ -74,17 +76,19 @@ $CURRENTJOB = "./${projectname}/${projectname}"
 
 
 #connect to MsolService
-#try {
+try {
     #old way
     Connect-MsolService -ErrorAction Stop
     
-    #new way - to be switched over soon
-    #Connect-AzureAD
+    if ($azure) {
+        #new way - to be switched over soon
+        Connect-AzureAD
+    }
 
-#}catch{
-#    echo "Could not connect!"
-#    throw $_
-#  }
+}catch{
+    echo "Could not connect!"
+    throw $_
+}
 
 
 
@@ -115,8 +119,10 @@ echo "Retrieving Domain Information:"
 #old way
 Get-MsolDomain | ft -Auto | tee -FilePath .\${CURRENTJOB}.Domains.txt
 
-#new way
-#Get-AzureADDomain | ft
+    if ($azure) {
+        #new way
+        Get-AzureADDomain | ft
+    }
 
 echo "-------------------------------------------"
 
@@ -169,8 +175,10 @@ echo "Retrieving Group Names:"
 #old way
 Get-MsolGroup -All | ft -Property DisplayName | tee -FilePath ./${CURRENTJOB}.groups.txt
 
-#new way
-#Get-AzureADGroup -All | ft
+    if($azure) {
+        #new way
+        Get-AzureADGroup -All | ft
+    }
 
 echo "-------------------------------------------"
 
