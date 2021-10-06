@@ -1,219 +1,316 @@
-# o365recon - retrieve information on o365 accounts
+# o365recon - retrieve information on o365 accounts (and AzureAD too)
 #
-# 2018, 2017 @nyxgeek, @Spoonman1091 - TrustedSec
+# 2021, 2018, 2017 @nyxgeek - TrustedSec
+#   Special thanks to @spoonman1091 for ideas and contributions
 #
 # Requirements: 
-# -Install Microsoft On-line Services Sign-In Assistant for IT Professionals RTW
-#        https://www.microsoft.com/en-us/download/details.aspx?id=41950
+# Open PowerShell window as Admin
 # Then run "Install-Module MsOnline"
+#          "Install-Module AzureAD"
 #
+#
+# 2021 UPDATE: BETTER FASTER STRONGER
+#       - BETTER: Got rid of unnecessary flags. ONLY FLAG NOW IS -azure for AzureAD.
+#       - FASTER: Storing objects in vars instead of re-requesting them, great speed!
+#       - STRONGER: New features, Bug fixes, AD information in easy-to-parse textfiles.
+#
+# Run the script. It will prompt you to authenticate. Log in. Get the loot.
 
 
-## FLAGS
-# -U               Get Userlist
-# -users_detailed  Get detailed information for each user
-# -users_ldap      Pull down user list in ldap style format
-# -G               Get Group list
-# -M               Get Group Membership
-# -D               Get Domain list
-# -C               Get Company info
 
-# -all             Do simple enum - like enum4linux (-U -G -M -D -C). This is run if no other options are selected.
-# -outputfile      Output file prefix
-# -azure           Use Azure to get extra info
-
-
-param([switch] $U = $false, 
-      [switch] $users_detailed = $false,
-      [switch] $users_ldap = $false,
-      [switch] $G = $false,
-      [switch] $M = $false,
-      [switch] $D = $false,
-      [switch] $C = $false,
-      [switch] $all = $false,
-      [string] $outputfile = $false,
-      [switch] $azure = $false
+param([switch] $azure = $false
       )
 
 
-# check to see if -all is goingto be run either by default or choice
-if ( (($U -eq $false) -And ($G -eq $false) -And ($users_detailed -eq $false) -And ($users_ldap -eq $false) -And ($M -eq $false) -And ($D -eq $false) -And ($C -eq $false)) -Or ($all -eq $true) ){
-
-    echo "Running the -all flag"
-
-    # set the flags to true
-    $U = $true
-    $G = $true
-    $M = $true
-    $D = $true
-    $C = $true
-
-}
-
-
-# if we don't have an -outputfile name specified, then ask for one
-if ($outputfile -eq $false){
-#$CURRENTJOB=read-host "enter name for current job"
-
+### SETTING UP FOLDER FOR OUR DUMP
+[boolean]$pathIsOK = $false
 $projectname = Read-host -prompt "Please enter a project name"
 $inputclean = '[^a-zA-Z]'
-$projectname.Replace($inputclean,'')
+$projectname = $projectname.Replace($inputclean,'')
 
 
-} else{
+while ($pathIsOK -eq $false){
 
-#otherwise, set currentjob to the supplied outputfile name
-$projectname = $outputfile
-$inputclean = '[^a-zA-Z]'
-$projectname.Replace($inputclean,'')
+    if (-not(Test-Path $projectname)){
+        try{
+            md $projectname > $null
+            $CURRENTJOB = "./${projectname}/${projectname}"
+            [boolean]$pathIsOK = $true
+            }
+        Catch{
+            echo "whoops"
+        }
+
+    }else{
+        $projectname = Read-host -prompt "File exists. Please enter a different project name"
+        $inputclean = '[^a-zA-Z]'
+        $projectname = $projectname.Replace($inputclean,'')
+        [boolean]$pathIsOK = $false
+    }
+
 }
 
-md $projectname
-$CURRENTJOB = "./${projectname}/${projectname}"
 
+######################################################################################
+# CONNECTING TO MICROSOFT SERVICES
 
-######### NOW, DOWN TO BUSINESS ###########
+echo "Connecting to Microsoft services:"
 
+### Prompt for authentication - this way we don't need to log in twice (unless MFA)
+$userauth = Get-Credential -Message "Please log in with your O365/AzureAD account"
 
-#connect to MsolService
+[boolean]$connectedToAzureAD = $false
+[boolean]$connectedToO365 = $false
+
 try {
-    #old way
-    Connect-MsolService -ErrorAction Stop
-    
-    if ($azure) {
-        #new way - to be switched over soon
-        Connect-AzureAD
+    Write-Host -NoNewline "`t`t`tChecking for MsOnline Module ... "
+    if (Get-Module -ListAvailable -Name MsOnline) {
+        echo "`t`tDONE"
+    }else{
+        echo "`t`tFAILED"
+        echo "`tPlease install the MsOnline Module:`n`t`tInstall-Module MsOnline"
+        exit
     }
 
+    write-host -NoNewline "`t`t`tConnecting to O365  ... "
+    Connect-MsolService -ErrorAction Stop -Credential $userauth > $null
+    $connectedToO365 = $true
+    echo "`t`t`tDONE"
 }catch{
-    echo "Could not connect!"
+    echo "Could not connect to O365. Have you run Install-Module MsOnline ?"
     throw $_
+    exit
+}
+
+if ($azure){
+    try {
+        Write-Host -NoNewline "`t`t`tChecking for AzureAD Module ... "
+        if (Get-Module -ListAvailable -Name AzureAD) {
+            echo "`t`tDONE"
+        }else{
+            echo "`t`tFAILED"
+            echo "`tPlease install the AzureAD Module:`n`t`tInstall-Module AzureAD"
+            exit
+        }
+
+        Write-Host -NoNewline "`t`t`tConnecting to AzureAD with Connect-AzureAD"
+        Connect-AzureAD -Credential $userauth > $null
+        $connectedToAzureAD = $true
+        echo "`tDONE"
+    }catch{
+        echo "Could not connect to AzureAD."
+        throw $_
+        echo "Continuing on, disabling AzureAD checks"
+        $connectedToAzureAD = $false
+    }
 }
 
 
+######################################################################################
+# GET COMPANY AND DOMAIN INFO
 
+Write-Host -NoNewline "`t`t`tRetrieving Company Info ... "
+$companyinfo = Get-MsolCompanyInformation
+$companyinfo |  Out-File -FilePath .\${CURRENTJOB}.CompanyInfo.txt
+echo "`t`t`tDONE"
+echo "------------------------------------------------------------------------------------"
+echo "Connected:"
+echo "Company Name: $($companyinfo.DisplayName)"
+echo "Initial Domain: $($companyinfo.InitialDomain)"
+echo "Address: $($companyinfo.Street), $($companyinfo.city), $($companyinfo.state) $($companyinfo.PostalCode)"
+echo "------------------------------------------------------------------------------------"
 
-## COMPANYINFO - ON BY DEFAULT
-
-if ($C -eq $true){
-
-#get company info
-echo "Retrieving Company Info:"
-
-#old way
-Get-MsolCompanyInformation |  tee -FilePath .\${CURRENTJOB}.CompanyInfo.txt
-
-#new way
-#????
-
-echo "-------------------------------------------"
-}
-
-## DOMAININFO FLAG - ON BY DEFAULT
-
-if ($D -eq $true){
-
-#get other domain info
+#get domain info
 echo "Retrieving Domain Information:"
+write-host -NoNewline "`t`t`tRetrieving O365 Domain Information ... "
+Get-MsolDomain | ft -Auto | Out-File -FilePath .\${CURRENTJOB}.DomainInfo.txt
+echo "`t`tDONE"
 
-#old way
-Get-MsolDomain | ft -Auto | tee -FilePath .\${CURRENTJOB}.Domains.txt
-
-    if ($azure) {
-        #new way
-        Get-AzureADDomain | ft
-    }
-
-echo "-------------------------------------------"
-
+if ($connectedToAzureAD) {
+    write-host -NoNewline "`t`t`tRetrieving AzureAD Domain Information ... "
+    Get-AzureADDomain | ft | Out-file -FilePath .\${CURRENTJOB}.AzureAD.DomainInfo.txt
+    echo "`tDONE"
 }
 
-## USERS FLAG -- ON BY DEFAULT
+echo "------------------------------------------------------------------------------------"
 
-if ($U -eq $true){
+######################################################################################
+# USER INFO
 
-echo "Retrieving User List:"
+echo "Retrieving User Information (this may take a while):" 
+Write-Host -NoNewline "`t`t`tRetrieving User List ..."
+#retrieve once, use multiple times
+$userlist = Get-MsolUser -All
+echo "`t`t`tDONE"
 
-Get-MsolUser -All | ft -Property UserPrincipalName -Autosize | tee -FilePath ./${CURRENTJOB}.Users.txt
+Write-Host -NoNewline "`t`t`tCreating simple O365 user list ... "
+# if we just are lazy and use ft, then our output file will have whitespace at the end :-/
+foreach($line in $userlist){$line.UserPrincipalName.Trim(" ") | Out-File -Append -FilePath .\${CURRENTJOB}.Users.txt } 
+echo "`t`tDONE"
 
-echo "-------------------------------------------"
+Write-Host -NoNewline "`t`t`tCreating Detailed O365 User List CSV ... "
+$userlist |  Where-Object {$_.UserPrincipalName -notlike "HealthMailbox*"} | Select-Object -Property UserPrincipalName,DisplayName,Department,Title,PhoneNumber,Office,PasswordNeverExpires,LastPasswordChangeTimestamp,LastDirSyncTime | Export-Csv -Append -Path .\${CURRENTJOB}.Users_Detailed.csv
+echo "`tDONE"
+
+Write-Host -NoNewline "`t`t`tGrabbing O365 LDAP style user data ... "
+$userlist | Select-Object -Property * | Out-File -Append -FilePath .\${CURRENTJOB}.Users_LDAP_details.txt
+echo "`t`tDONE"
+
+
+if ($connectedToAzureAD){
+    $azureuserlist = Get-AzureADUser -All $true
+    Write-Host -NoNewline "`t`t`tCreating simple Azure AD user list ... "
+    # if we just are lazy and use ft, then our output file will have whitespace at the end :-/
+    foreach($line in $azureuserlist){$line.UserPrincipalName.Trim(" ") | Out-File -Append -FilePath .\${CURRENTJOB}.AzureAD.Users.txt } 
+    echo "`t`tDONE"
+}
+echo "------------------------------------------------------------------------------------"
+
+######################################################################################
+# GROUP INFO
+
+echo "Retrieving Group Information:"
+Write-Host -NoNewline "`t`t`tRetrieving O365 Group Names ... "
+$grouplist = Get-MsolGroup -All
+echo "`t`tDONE"
+
+if ($connectedToAzureAD){
+    Write-Host -NoNewline "`t`t`tRetrieving AzureAD Group Names ... "
+    $azuregrouplist = Get-AzureADGroup -All $true
+    echo "`t`tDONE"
 }
 
-## IF DETAILED FLAG IS SET
 
-if ($users_detailed -eq $true){
+Write-Host -NoNewline "`t`t`tCreating Simple O365 Group List ... "
+foreach($line in $grouplist){$line.DisplayName.Trim(" ") | Out-File -Append -FilePath .\${CURRENTJOB}.Groups.txt } 
+echo "`t`tDONE"
 
-echo "Retrieving Detailed User Information:"
-
-Get-MsolUser -All |  Where-Object {$_.UserPrincipalName -notlike "HealthMailbox*"} | ft -Property UserPrincipalName,DisplayName,Department,Title,PhoneNumber,Office,PasswordNeverExpires,LastPasswordChangeTimestamp,LastDirSyncTime -Autosize | Out-String -Width 4096 | tee -FilePath .\${CURRENTJOB}.users_detailed.txt
-Get-MsolUser -All |  Where-Object {$_.UserPrincipalName -notlike "HealthMailbox*"} | Select-Object -Property UserPrincipalName,DisplayName,Department,Title,PhoneNumber,Office,PasswordNeverExpires,LastPasswordChangeTimestamp,LastDirSyncTime | Export-Csv -Append -Path .\${CURRENTJOB}.users_detailed.csv
-
-echo "-------------------------------------------"
-
+if ($connectedToAzureAD){
+    Write-Host -NoNewline "`t`t`tCreating Simple AzureAD Group List ... "
+    foreach($line in $azureagrouplist){$line.DisplayName.Trim(" ") | Out-File -Append -FilePath .\${CURRENTJOB}.AzureAD.Groups.txt }
+    echo "`t`tDONE"
 }
 
 
-## IF USER_LDAP IS SET -- this is each user entry ldap style
-if ($users_ldap -eq  $true){
-
-echo "Retrieving User Information in LDAP Format"
-Get-MsolUser -All | Select-Object -Property * | tee -FilePath ./${CURRENTJOB}.users_ldap_detailed.txt
- 
-echo "-------------------------------------------"
-
-}
-
-
-## GROUPS FLAG - ON BY DEFAULT
-
-
-if ($G -eq $true){
-# RETRIEVE GROUP NAMES
-
-echo "Retrieving Group Names:"
-
-#old way
-Get-MsolGroup -All | ft -Property DisplayName | tee -FilePath ./${CURRENTJOB}.groups.txt
-
-    if($azure) {
-        #new way
-        Get-AzureADGroup -All | ft
-    }
-
-echo "-------------------------------------------"
+Write-Host -NoNewline "`t`t`tRetrieving Extended Group Information ... "
+$grouplist | ft -Property DisplayName,Description,GroupType -Autosize | out-string -width 1024 | Out-File -Append -FilePath .\${CURRENTJOB}.Groups_Advanced.txt
+echo "`tDONE"
+echo "------------------------------------------------------------------------------------"
 
 
 
-## GROUPS_ADVANCED FLAG - OFF BY DEFAULT
-# RETRIEVE GROUP NAMES, DESCRIPTION, GROUP TYPE
+######################################################################################
+# GROUP MEMBERSHIP
 
-echo "Retrieving Extended Group Information:"
-#old way
-Get-MsolGroup -All | ft -Property DisplayName,Description,GroupType -Autosize | out-string -width 1024 | tee -FilePath .\${CURRENTJOB}.groups_advanced.txt
+echo "Retrieving Group Membership (this may take a while): "
 
-
-echo "-------------------------------------------"
-
-}
-
-## GROUP_MEMBERSHIP FLAG - ON BY DEFAULT
-
-if ($M -eq $true){
-# get all group memberships
-
-echo "Retrieving Group Membership:"
-
-# old way but with enum4linux style group membership
-Get-MsolGroup -All | % {
+Write-Host -NoNewline "`t`t`tIterating O365 Group Membership ... "
+# enum4linux style group membership
+$grouplist | % {
     $CURRENTGROUP=$_.DisplayName
     $memberlist=$(Get-MsolGroupMember -All -GroupObjectid $_.objectid); 
     if ($memberlist -ne $null){ 
         foreach ($item in $memberlist){
-            echo "$($CURRENTGROUP):$($item.EmailAddress)" | tee -Append -FilePath .\${CURRENTJOB}.groupmembership.txt
+            echo "$($CURRENTGROUP):$($item.EmailAddress)" | Out-File -Append -FilePath .\${CURRENTJOB}.GroupMembership.txt
         } 
-    }else{ 
-        "$($CURRENTGROUP): no group members found" 
-        };
-    echo "--------"
     }
 }
+echo "`t`tDONE"
+echo "------------------------------------------------------------------------------------"
+
+######################################################################################
+# DEVICE INFO
+
+echo "Retrieving Device Information:"
+Write-Host -NoNewline "`t`t`tRetrieving O365 Device Information ... "
+$o365devicelist = Get-MsolDevice -All
+echo "`t`tDONE"
+
+Write-Host -NoNewline "`t`t`tCreating simple O365 user list ... "
+# if we just are lazy and use ft, then our output file will have whitespace at the end :-/
+foreach($line in $o365devicelist){$line.DisplayName.Trim(" ") | Out-File -Append -FilePath .\${CURRENTJOB}.DeviceList.txt } 
+echo "`t`tDONE"
+
+Write-Host -NoNewline "`t`t`tCreating Extended O365 Device List ... "
+$o365devicelist | Select-Object -Property DisplayName,DeviceOsType,DeviceTrustType,DeviceTrustLevel,ApproximateLastLogonTimestamp,Enabled | Export-Csv -Path .\${CURRENTJOB}.DeviceList_Advanced.csv
+echo "`t`tDONE"
+
+
+#Azure AD 
+if ($connectedToAzureAD){
+    Write-Host -NoNewline "`t`t`tRetrieving AzureAD Device Information ..."
+    $azuredevicelist = Get-AzureADDevice -All $true
+    echo "`tDONE"
+
+    Write-Host -NoNewline "`t`t`tCreating user->device mapping ..."
+    #This pulls down a list of devices and looks up corresponding owner
+    $azuredevicelist | %{ $OwnerObject = Get-AzureADDeviceRegisteredOwner -ObjectId  $_.ObjectId; echo "$($OwnerObject.DisplayName),$($_.DisplayName),$($_.DeviceOsType)"} | Sort-Object | Out-File -FilePath .\${CURRENTJOB}.AzureAD.DeviceList_Owners.csv
+    echo "`t`tDONE"
+    echo "------------------------------------------------------------------------------------"
+}
+
+######################################################################################
+# APPLICATION SECURITY REPORT
+
+# UserPermission settings
+
+if ($connectedToAzureAD){
+    echo "Checking Applications in Azure AD:"
+    Write-Host -NoNewline "`t`t`tRetrieving a list of AzureAD Applications ... "   
+    $azureadapps = Get-AzureADApplication -All:$true
+    $azureadapps | Out-File -Append -FilePath .\${CURRENTJOB}.AzureAD.ApplicationList.txt
+    echo "`tDONE"
+
+    Write-Host -NoNewline "`t`t`tCreating user->application mapping ..."
+    #This pulls down a list of devices and looks up corresponding owner
+    $azureadapps | %{ $OwnerObject = Get-AzureADApplicationOwner -ObjectId  $_.ObjectId; echo "$($OwnerObject.UserPrincipalName),$($OwnerObject.DisplayName),$($_.DisplayName)"} | Sort-Object | Out-File -FilePath .\${CURRENTJOB}.AzureAD.Application_Owners.csv
+    echo "`t`tDONE"
+}
+echo ""
+if ($companyinfo.UsersPermissionToCreateLOBAppsEnabled -eq "True"){
+echo "[!] Users in this tenant are allowed to create applications" | tee -Append -FilePath .\${CURRENTJOB}.AppReport.txt
+}
+if ($companyinfo.UsersPermissionToReadOtherUsersEnabled -eq "True"){
+echo "[!] Users in this tenant are allowed to read other user information." | tee -Append -FilePath .\${CURRENTJOB}.AppReport.txt
+}
+if ($companyinfo.UsersPermissionToUserConsentToAppEnabled -eq "True"){
+echo "[!] Users in this tenant are allowed to consent to applications." | tee -Append -FilePath .\${CURRENTJOB}.AppReport.txt
+}
+
+echo "------------------------------------------------------------------------------------"
+
+
+# look for admin groups
+echo "Group Membership Checks:"
+Write-Host -NoNewline "`t`t`tLooking for Admin users ... "
+# enum4linux style group membership
+$grouplist | Where-Object { ( $_.DisplayName -like "*admin*" ) } | % {
+    $CURRENTGROUP=$_.DisplayName
+    $memberlist=$(Get-MsolGroupMember -All -GroupObjectid $_.objectid); 
+    if ($memberlist -ne $null){ 
+        foreach ($item in $memberlist){
+            echo "$($CURRENTGROUP):$($item.EmailAddress)" | Out-File -Append -FilePath .\${CURRENTJOB}.GroupMembership_VPN.txt
+        } 
+    }
+}
+echo "`t`t`tDONE"
+
+# vpn groups - look for alternate names like globalprotect etc
+Write-Host -NoNewline "`t`t`tLooking for VPN groups ... "
+# enum4linux style group membership
+$grouplist | Where-Object { ( $_.DisplayName -like "*vpn*" ) -Or ( $_.DisplayName -like "*cisco*" ) -Or ( $_.DisplayName -like "*globalprotect*" ) -Or ( $_.DisplayName -like "*palo*" ) } | % {
+    $CURRENTGROUP=$_.DisplayName
+    $memberlist=$(Get-MsolGroupMember -All -GroupObjectid $_.objectid); 
+    if ($memberlist -ne $null){ 
+        foreach ($item in $memberlist){
+            echo "$($CURRENTGROUP):$($item.EmailAddress)" | Out-File -Append -FilePath .\${CURRENTJOB}.GroupMembership_VPN.txt
+        } 
+    }
+}
+echo "`t`t`tDONE"
+echo "------------------------------------------------------------------------------------"
+echo ""
+echo "JOB COMPLETE: GO GET YOUR LOOT!"
+ls .\${CURRENTJOB}*
+
+# haec programma meum est. multa similia sunt, sed haec una mea est.
