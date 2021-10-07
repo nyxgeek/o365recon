@@ -2,7 +2,7 @@
 script to retrieve information via O365 and AzureAD with a valid cred
 
 ## setup
-For most people, you will just have to install the MsOnline module
+Install these two modules
 ```
 Install-Module MSOnline
 Install-Module AzureAD
