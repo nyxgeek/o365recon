@@ -15,4 +15,4 @@ Install-Module AzureAD
 
 There is only one flag (-azure) and it is optional. You will be prompted to auth. You may be prompted twice if MFA is enabled.
 
-![ScreenShot](https://raw.github.com/nyxgeek/o365recon/master/screenshot.png)
+![ScreenShot](https://raw.github.com/nyxgeek/o365recon/master/screenshot.png?)
