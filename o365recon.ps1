@@ -22,7 +22,77 @@ param([switch] $azure = $false
       )
 
 
-### SETTING UP FOLDER FOR OUR DUMP
+######################################################################################
+# CONNECTING TO MICROSOFT SERVICES
+
+echo "Connecting to Microsoft services:"
+
+[boolean]$connectedToAzureAD = $false
+[boolean]$connectedToO365 = $false
+
+Write-Host -NoNewline "`t`t`tChecking for MsOnline Module ... "
+if (Get-Module -ListAvailable -Name MsOnline) {
+    Write-Host "`t`tDONE"
+}else{
+    Write-Host "`t`tFAILED"
+    Write-Host "`tPlease install the MsOnline Module:`n`t`tInstall-Module MsOnline"
+    exit
+}
+
+Write-Host -NoNewline "`t`t`tChecking for AzureAD Module ... "
+if (Get-Module -ListAvailable -Name AzureAD) {
+    Write-Host "`t`tDONE"
+}else{
+    Write-Host "`t`tFAILED"
+    Write-Host "`tPlease install the AzureAD Module:`n`t`tInstall-Module AzureAD"
+    exit
+}
+
+
+
+if ($azure){
+    try {
+        Write-Host -NoNewline "`t`t`tConnecting to AzureAD with Connect-AzureAD"
+        Connect-AzureAD -Credential $userauth > $null
+        $connectedToAzureAD = $true
+        Write-Host "`tDONE"
+        Write-Host -NoNewline "`t`t`tConnecting to O365  ... "
+        try {
+            $logintoken = [Microsoft.Open.Azure.AD.CommonLibrary.AzureSession]::AccessTokens
+            Connect-MsolService -AdGraphAccessToken $logintoken.AccessToken.AccessToken
+            $connectedToO365 = $true
+        }
+        catch {
+            Write-Host "Could not use AzureAD Token to connect MsolService. Trying again"
+            Connect-MsolService
+            $connectedToO365 = $true
+        }
+        Write-Host "`tDONE"
+    }catch{
+        Write-Host "Could not connect to AzureAD."
+        throw $_
+        exit
+    }
+} else {
+    try {
+        Write-Host -NoNewline "`t`t`tConnecting to O365  ... "
+        Connect-MsolService -ErrorAction Stop -Credential $userauth > $null
+        $connectedToO365 = $true
+        Write-Host "`t`t`tDONE"
+    }catch{
+        Write-Host "Could not connect to O365. Have you run Install-Module MsOnline ?"
+        # if we cancel out here, go ahead and clean up that folder we created
+        throw $_
+        exit
+    }
+
+
+}
+
+
+######################################################################################
+# Setting up our working directory
+
 [boolean]$pathIsOK = $false
 $projectname = Read-host -prompt "Please enter a project name"
 $inputclean = '[^a-zA-Z]'
@@ -50,62 +120,6 @@ while ($pathIsOK -eq $false){
 
 }
 
-
-######################################################################################
-# CONNECTING TO MICROSOFT SERVICES
-
-echo "Connecting to Microsoft services:"
-
-### Prompt for authentication - this way we don't need to log in twice (unless MFA)
-$userauth = Get-Credential -Message "Please log in with your O365/AzureAD account"
-
-[boolean]$connectedToAzureAD = $false
-[boolean]$connectedToO365 = $false
-
-try {
-    Write-Host -NoNewline "`t`t`tChecking for MsOnline Module ... "
-    if (Get-Module -ListAvailable -Name MsOnline) {
-        echo "`t`tDONE"
-    }else{
-        echo "`t`tFAILED"
-        echo "`tPlease install the MsOnline Module:`n`t`tInstall-Module MsOnline"
-        exit
-    }
-
-    write-host -NoNewline "`t`t`tConnecting to O365  ... "
-    Connect-MsolService -ErrorAction Stop -Credential $userauth > $null
-    $connectedToO365 = $true
-    echo "`t`t`tDONE"
-}catch{
-    echo "Could not connect to O365. Have you run Install-Module MsOnline ?"
-    # if we cancel out here, go ahead and clean up that folder we created
-    del $projectname > $null
-    throw $_
-    exit
-}
-
-if ($azure){
-    try {
-        Write-Host -NoNewline "`t`t`tChecking for AzureAD Module ... "
-        if (Get-Module -ListAvailable -Name AzureAD) {
-            echo "`t`tDONE"
-        }else{
-            echo "`t`tFAILED"
-            echo "`tPlease install the AzureAD Module:`n`t`tInstall-Module AzureAD"
-            exit
-        }
-
-        Write-Host -NoNewline "`t`t`tConnecting to AzureAD with Connect-AzureAD"
-        Connect-AzureAD -Credential $userauth > $null
-        $connectedToAzureAD = $true
-        echo "`tDONE"
-    }catch{
-        echo "Could not connect to AzureAD."
-        throw $_
-        echo "Continuing on, disabling AzureAD checks"
-        $connectedToAzureAD = $false
-    }
-}
 
 
 ######################################################################################
