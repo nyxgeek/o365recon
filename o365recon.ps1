@@ -48,45 +48,32 @@ if (Get-Module -ListAvailable -Name AzureAD) {
     exit
 }
 
-
+# Ask for user credentials
+$userauth = Get-Credential
 
 if ($azure){
     try {
         Write-Host -NoNewline "`t`t`tConnecting to AzureAD with Connect-AzureAD"
-        Connect-AzureAD -Credential $userauth > $null
+        Connect-AzureAD -ErrorAction Stop -Credential $userauth > $null
         $connectedToAzureAD = $true
-        Write-Host "`tDONE"
-        Write-Host -NoNewline "`t`t`tConnecting to O365  ... "
-        try {
-            $logintoken = [Microsoft.Open.Azure.AD.CommonLibrary.AzureSession]::AccessTokens
-            Connect-MsolService -AdGraphAccessToken $logintoken.AccessToken.AccessToken
-            $connectedToO365 = $true
-        }
-        catch {
-            Write-Host "Could not use AzureAD Token to connect MsolService. Trying again"
-            Connect-MsolService
-            $connectedToO365 = $true
-        }
         Write-Host "`tDONE"
     }catch{
         Write-Host "Could not connect to AzureAD."
         throw $_
         exit
     }
-} else {
-    try {
-        Write-Host -NoNewline "`t`t`tConnecting to O365  ... "
-        Connect-MsolService -ErrorAction Stop -Credential $userauth > $null
-        $connectedToO365 = $true
-        Write-Host "`t`t`tDONE"
-    }catch{
-        Write-Host "Could not connect to O365. Have you run Install-Module MsOnline ?"
-        # if we cancel out here, go ahead and clean up that folder we created
-        throw $_
-        exit
-    }
+} 
 
-
+try {
+    Write-Host -NoNewline "`t`t`tConnecting to O365  ... "
+    Connect-MsolService -ErrorAction Stop -Credential $userauth > $null
+    $connectedToO365 = $true
+    Write-Host "`t`t`tDONE"
+}catch{
+    Write-Host "Could not connect to O365. Have you run Install-Module MsOnline ?"
+    # if we cancel out here, go ahead and clean up that folder we created
+    throw $_
+    exit
 }
 
 
